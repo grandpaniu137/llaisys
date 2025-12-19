@@ -164,18 +164,46 @@ void Tensor::debug() const {
 }
 
 bool Tensor::isContiguous() const {
-    TO_BE_IMPLEMENTED();
+    ptrdiff_t right_stride=1;
+    for(int i=static_cast<int>(ndim()-1);i>=0;i--){
+        if(strides()[i]!=right_stride){
+            return false;
+        }
+        right_stride*=shape()[i];
+    }
     return true;
 }
 
 tensor_t Tensor::permute(const std::vector<size_t> &order) const {
-    TO_BE_IMPLEMENTED();
+    
     return std::shared_ptr<Tensor>(new Tensor(_meta, _storage));
 }
 
 tensor_t Tensor::view(const std::vector<size_t> &shape) const {
-    TO_BE_IMPLEMENTED();
-    return std::shared_ptr<Tensor>(new Tensor(_meta, _storage));
+    //不连续一定不能这样转换
+    if(!isContiguous()){
+        throw std::runtime_error("Contiguous error");
+    }
+    //数量检查
+    size_t new_numel=1;
+    for(auto dim:shape){
+        new_numel*=dim;
+    }
+    if(new_numel!=numel()){
+        throw std::runtime_error("Num error");
+    }
+    //转换，其实就是在步长上面下功夫
+    std::vector<ptrdiff_t> strides_new(shape.size());
+    size_t stride=1;
+    for(int i=static_cast<int>(shape.size()-1);i>=0;i--){
+        strides_new[i]=stride;
+        stride*=shape[i];
+    }
+    TensorMeta meta_new=_meta;
+    meta_new.shape=shape;
+    meta_new.strides=strides_new;
+
+    return std::shared_ptr<Tensor>(new Tensor(meta_new, _storage,_offset));
 }
 
 tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
@@ -184,7 +212,12 @@ tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
 }
 
 void Tensor::load(const void *src_) {
-    TO_BE_IMPLEMENTED();
+    core::context().runtime().api()->memcpy_sync(
+        data(),//基地址+偏移量
+        src_,//要搬运的对象
+        numel()*elementSize(),//搬运到的地方的大小
+        LLAISYS_MEMCPY_H2D//host to device 主机到设备   
+    );
 }
 
 tensor_t Tensor::contiguous() const {
