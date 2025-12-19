@@ -175,8 +175,27 @@ bool Tensor::isContiguous() const {
 }
 
 tensor_t Tensor::permute(const std::vector<size_t> &order) const {
+    if(!isContiguous()){
+        throw std::runtime_error("Contiguous error");
+    }
+    size_t new_numel=1;
+    for(auto dim:order){
+        new_numel*=dim;
+    }
+    if(new_numel!=numel()){
+        throw std::runtime_error("Num error");
+    }
+    std::vector<ptrdiff_t> new_strides(order.size());
+    size_t stride=1;
+    for(int i=static_cast<int>(order.size()-1);i>=0;i--){
+        new_strides[i]=stride;
+        stride*=order[i];
+    }
+    TensorMeta new_meta=_meta;
+    new_meta.shape=order;
+    new_meta.strides=new_strides;
     
-    return std::shared_ptr<Tensor>(new Tensor(_meta, _storage));
+    return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage,_offset));
 }
 
 tensor_t Tensor::view(const std::vector<size_t> &shape) const {
@@ -193,17 +212,17 @@ tensor_t Tensor::view(const std::vector<size_t> &shape) const {
         throw std::runtime_error("Num error");
     }
     //转换，其实就是在步长上面下功夫
-    std::vector<ptrdiff_t> strides_new(shape.size());
+    std::vector<ptrdiff_t> new_strides(shape.size());
     size_t stride=1;
     for(int i=static_cast<int>(shape.size()-1);i>=0;i--){
-        strides_new[i]=stride;
+        new_strides[i]=stride;
         stride*=shape[i];
     }
-    TensorMeta meta_new=_meta;
-    meta_new.shape=shape;
-    meta_new.strides=strides_new;
+    TensorMeta new_meta=_meta;
+    new_meta.shape=shape;
+    new_meta.strides=new_strides;
 
-    return std::shared_ptr<Tensor>(new Tensor(meta_new, _storage,_offset));
+    return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage,_offset));
 }
 
 tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
