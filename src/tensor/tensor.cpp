@@ -175,28 +175,25 @@ bool Tensor::isContiguous() const {
 }
 
 tensor_t Tensor::permute(const std::vector<size_t> &order) const {
-    if(!isContiguous()){
-        throw std::runtime_error("Contiguous error");
-    }
-    size_t new_numel=1;
-    for(auto dim:order){
-        new_numel*=dim;
-    }
-    if(new_numel!=numel()){
-        throw std::runtime_error("Num error");
-    }
-    std::vector<ptrdiff_t> new_strides(order.size());
-    size_t stride=1;
-    for(int i=static_cast<int>(order.size()-1);i>=0;i--){
-        new_strides[i]=stride;
-        stride*=order[i];
-    }
-    TensorMeta new_meta=_meta;
-    new_meta.shape=order;
-    new_meta.strides=new_strides;
-    
-    return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage,_offset));
+
+        if(order.size()!=ndim()){
+            throw std::runtime_error("dimension error");
+
+        }
+        std::vector<size_t> new_shape(ndim());
+        std::vector<ptrdiff_t> new_strides(ndim());
+        //简单调换即可
+        for(size_t i=0;i<ndim();i++){
+            new_shape[i]=shape()[order[i]];
+            new_strides[i]=strides()[order[i]];
+        }
+        TensorMeta new_meta=_meta;
+        new_meta.shape=new_shape;
+        new_meta.strides=new_strides;
+        return std::shared_ptr<Tensor>(new Tensor(new_meta,_storage,_offset));
 }
+
+
 
 tensor_t Tensor::view(const std::vector<size_t> &shape) const {
     //不连续一定不能这样转换
@@ -226,8 +223,20 @@ tensor_t Tensor::view(const std::vector<size_t> &shape) const {
 }
 
 tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
-    TO_BE_IMPLEMENTED();
-    return std::shared_ptr<Tensor>(new Tensor(_meta, _storage));
+    if(dim>=ndim()){
+        throw std::runtime_error("dim out of range");
+    }
+    if(start>=end || end>shape()[dim]){
+        throw std::runtime_error("index out of range or start>=end");
+    }
+    std::vector<size_t> new_shape=shape();
+    std::vector<ptrdiff_t> new_strides=strides();
+    new_shape[dim]=end-start;
+    size_t new_offset=_offset+start*new_strides[dim]*elementSize();
+    TensorMeta new_meta=_meta;
+    new_meta.shape=new_shape;
+    new_meta.strides=new_strides;
+    return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage,new_offset));
 }
 
 void Tensor::load(const void *src_) {
