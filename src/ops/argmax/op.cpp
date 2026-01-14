@@ -8,7 +8,7 @@ namespace llaisys::ops {
 void argmax(tensor_t max_idx, tensor_t max_val, tensor_t vals) {
     CHECK_SAME_DEVICE(max_idx,max_val,vals);
     CHECK_SAME_DTYPE(max_val->dtype(), vals->dtype());
-    ASSERT(max_idx->isContiguous() && max_val->isContiguous() && vals->isContiguous(), "Add: all tensors must be contiguous.");
+    ASSERT(max_idx->isContiguous() && max_val->isContiguous() && vals->isContiguous(), "embedding: all tensors must be contiguous.");
     if (vals->deviceType() == LLAISYS_DEVICE_CPU) {
         return cpu::argmax(max_idx->data(),max_val->data(),vals->data(),vals->dtype(),vals->numel());
     }
